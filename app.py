@@ -11,8 +11,10 @@ app = Flask(__name__)
 AWS_REGION = os.getenv("AWS_REGION")
 SQS_URL = os.getenv("SQS_URL")
 
+if not AWS_REGION or not SQS_URL:
+    raise ValueError("Missing required environment variables")
+
 sqs = boto3.client('sqs', region_name=AWS_REGION)
-SQS_URL = SQS_URL
 
 @app.route("/event", methods=["POST"])
 def handle_event():
@@ -21,6 +23,8 @@ def handle_event():
     data = request.json
     if not data:
         return jsonify({"error": "Invalid data"}), 400
+    if "sensor_name" not in data or "event" not in data:
+        return jsonify({"error": "Missing required fields"}), 400
 
     event = {
         "sensor_name": data["sensor_name"],
@@ -28,8 +32,13 @@ def handle_event():
         "timestamp": int(time.time())
     }
 
-    sqs.send_message(QueueUrl=SQS_URL, MessageBody=json.dumps(event))
-    print(f"Sent event: {event}")
+    try:
+        sqs.send_message(QueueUrl=SQS_URL, MessageBody=json.dumps(event))
+        print(f"Sent event: {event}")
+    except Exception as e:
+        print("Error sending message to SQS. Exception:", e)
+        return jsonify({"error": "Failed to send event to message queue"}), 500
+    
     return jsonify({"message": "Event received"}), 200
 
 if __name__ == "__main__":
