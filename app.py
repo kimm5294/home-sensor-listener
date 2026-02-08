@@ -8,6 +8,7 @@ import time
 load_dotenv()
 app = Flask(__name__)
 
+# Load environment variables
 AWS_REGION = os.getenv("AWS_REGION")
 SQS_URL = os.getenv("SQS_URL")
 
@@ -16,6 +17,7 @@ if not AWS_REGION or not SQS_URL:
 
 sqs = boto3.client('sqs', region_name=AWS_REGION)
 
+# HTTP endpoint for IoT devices to send events
 @app.route("/event", methods=["POST"])
 def handle_event():
     print(f"Received event: {request.json}")
@@ -32,6 +34,7 @@ def handle_event():
         "timestamp": int(time.time())
     }
 
+    # Send events to SQS for processing
     try:
         sqs.send_message(QueueUrl=SQS_URL, MessageBody=json.dumps(event))
         print(f"Sent event: {event}")
